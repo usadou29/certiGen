@@ -3,11 +3,14 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
+import { convertPptxToPdf, initializeWasmModule } from './pptxToPdfConverter';
 
 export const generateCertificates = async (
   data: FormationData,
   onProgress: (current: number, total: number) => void
 ): Promise<void> => {
+  await initializeWasmModule();
+
   const zip = new JSZip();
   const total = data.participants.length;
   const folderName = `Certificates_${data.formationName.replace(/\s+/g, '_')}`;
@@ -26,10 +29,13 @@ export const generateCertificates = async (
 
   for (let i = 0; i < data.participants.length; i++) {
     const participant = data.participants[i];
-    const pdfContent = await generateCertificatePDF(participant, data, templateContent);
+    const pptxBlob = await generateCertificatePPTX(participant, data, templateContent);
 
-    const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pptx`;
-    folder.file(fileName, pdfContent);
+    const fileBaseName = `Certificate_${participant.firstName}_${participant.lastName}`;
+    const pdfBlob = await convertPptxToPdf(pptxBlob, fileBaseName);
+
+    const fileName = `${fileBaseName}.pdf`;
+    folder.file(fileName, pdfBlob);
 
     onProgress(i + 1, total);
 
@@ -40,7 +46,7 @@ export const generateCertificates = async (
   saveAs(zipBlob, `${folderName}.zip`);
 };
 
-const generateCertificatePDF = async (
+const generateCertificatePPTX = async (
   participant: Participant,
   data: FormationData,
   templateContent: Uint8Array
