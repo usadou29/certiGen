@@ -8,6 +8,12 @@ export const generateCertificates = async (
 ): Promise<void> => {
   const zip = new JSZip();
   const total = data.participants.length;
+  const folderName = `Certificates_${data.formationName.replace(/\s+/g, '_')}`;
+  const folder = zip.folder(folderName);
+
+  if (!folder) {
+    throw new Error('Could not create folder in ZIP');
+  }
 
   for (let i = 0; i < data.participants.length; i++) {
     const participant = data.participants[i];
@@ -15,7 +21,7 @@ export const generateCertificates = async (
     const pdfContent = await generateCertificatePDF(participant, data);
 
     const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pdf`;
-    zip.file(fileName, pdfContent);
+    folder.file(fileName, pdfContent);
 
     onProgress(i + 1, total);
 
@@ -23,7 +29,7 @@ export const generateCertificates = async (
   }
 
   const zipBlob = await zip.generateAsync({ type: 'blob' });
-  saveAs(zipBlob, `Certificates_${data.formationName.replace(/\s+/g, '_')}.zip`);
+  saveAs(zipBlob, `${folderName}.zip`);
 };
 
 const generateCertificatePDF = async (
