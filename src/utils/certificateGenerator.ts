@@ -9,7 +9,12 @@ export const generateCertificates = async (
   data: FormationData,
   onProgress: (current: number, total: number) => void
 ): Promise<void> => {
-  await initializeWasmModule();
+  const wasmModule = await initializeWasmModule();
+  const usePdf = wasmModule !== null;
+
+  if (!usePdf) {
+    console.info('Generating certificates in PPTX format (WASM not available)');
+  }
 
   const zip = new JSZip();
   const total = data.participants.length;
@@ -32,10 +37,25 @@ export const generateCertificates = async (
     const pptxBlob = await generateCertificatePPTX(participant, data, templateContent);
 
     const fileBaseName = `Certificate_${participant.firstName}_${participant.lastName}`;
-    const pdfBlob = await convertPptxToPdf(pptxBlob, fileBaseName);
 
-    const fileName = `${fileBaseName}.pdf`;
-    folder.file(fileName, pdfBlob);
+    let fileBlob: Blob;
+    let fileName: string;
+
+    if (usePdf) {
+      const pdfBlob = await convertPptxToPdf(pptxBlob, fileBaseName);
+      if (pdfBlob) {
+        fileBlob = pdfBlob;
+        fileName = `${fileBaseName}.pdf`;
+      } else {
+        fileBlob = pptxBlob;
+        fileName = `${fileBaseName}.pptx`;
+      }
+    } else {
+      fileBlob = pptxBlob;
+      fileName = `${fileBaseName}.pptx`;
+    }
+
+    folder.file(fileName, fileBlob);
 
     onProgress(i + 1, total);
 

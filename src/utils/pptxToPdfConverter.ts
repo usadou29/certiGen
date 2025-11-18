@@ -28,9 +28,9 @@ declare global {
 }
 
 let wasmModule: SpireModule | null = null;
-let initializationPromise: Promise<SpireModule> | null = null;
+let initializationPromise: Promise<SpireModule | null> | null = null;
 
-export const initializeWasmModule = (): Promise<SpireModule> => {
+export const initializeWasmModule = (): Promise<SpireModule | null> => {
   if (wasmModule) {
     return Promise.resolve(wasmModule);
   }
@@ -39,8 +39,13 @@ export const initializeWasmModule = (): Promise<SpireModule> => {
     return initializationPromise;
   }
 
-  initializationPromise = new Promise((resolve, reject) => {
+  initializationPromise = new Promise((resolve) => {
+    let attempts = 0;
+    const maxAttempts = 30;
+
     const checkModule = () => {
+      attempts++;
+
       if (window.spirepresentation && window.Module) {
         const { Module, spirepresentation } = window;
 
@@ -53,29 +58,26 @@ export const initializeWasmModule = (): Promise<SpireModule> => {
             resolve(spirepresentation);
           };
         }
+      } else if (attempts >= maxAttempts) {
+        console.warn('WASM module not available. Falling back to PPTX output.');
+        resolve(null);
       } else {
         setTimeout(checkModule, 100);
       }
     };
 
-    const timeout = setTimeout(() => {
-      reject(new Error('WASM module initialization timeout'));
-    }, 30000);
-
     checkModule();
-
-    const originalResolve = resolve;
-    resolve = (value) => {
-      clearTimeout(timeout);
-      originalResolve(value);
-    };
   });
 
   return initializationPromise;
 };
 
-export const convertPptxToPdf = async (pptxBlob: Blob, fileName: string): Promise<Blob> => {
+export const convertPptxToPdf = async (pptxBlob: Blob, fileName: string): Promise<Blob | null> => {
   const module = await initializeWasmModule();
+
+  if (!module) {
+    return null;
+  }
 
   const pptxArrayBuffer = await pptxBlob.arrayBuffer();
   const pptxData = new Uint8Array(pptxArrayBuffer);
@@ -112,4 +114,9 @@ export const convertPptxToPdf = async (pptxBlob: Blob, fileName: string): Promis
   }
 
   return pdfBlob;
+};
+
+export const isWasmAvailable = async (): Promise<boolean> => {
+  const module = await initializeWasmModule();
+  return module !== null;
 };
