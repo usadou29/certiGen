@@ -58,7 +58,7 @@ const generateCertificatePDF = async (
     let endDateFormatted = '';
     endDateFormatted = end.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    startDateFormatted = extracted(data);
+    startDateFormatted = getStartDate(data);
 
 
 
@@ -89,7 +89,7 @@ const generateCertificatePDF = async (
 };
 
 
-function extracted(data: FormationData) {
+function getStartDate(data: FormationData) {
 
     const start = new Date(data.startDate);
     const end = new Date(data.endDate);
