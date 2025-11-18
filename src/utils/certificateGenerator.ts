@@ -28,7 +28,7 @@ export const generateCertificates = async (
     const participant = data.participants[i];
     const pdfContent = await generateCertificatePDF(participant, data, templateContent);
 
-    const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pdf`;
+    const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pptx`;
     folder.file(fileName, pdfContent);
 
     onProgress(i + 1, total);
@@ -80,34 +80,12 @@ const generateCertificatePDF = async (
     throw error;
   }
 
-  const pptxBlob = doc.getZip().generate({
+  const buf = doc.getZip().generate({
     type: 'blob',
     mimeType: 'application/pptx'
   });
 
-  const pdfBlob = await convertPptxToPdf(pptxBlob);
-  return pdfBlob;
-};
-
-const convertPptxToPdf = async (pptxBlob: Blob): Promise<Blob> => {
-  const formData = new FormData();
-  formData.append('file', pptxBlob, 'certificate.pptx');
-
-  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/convert-pptx-to-pdf`;
-
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to convert PPTX to PDF: ${response.statusText}`);
-  }
-
-  return await response.blob();
+  return buf;
 };
 
 
