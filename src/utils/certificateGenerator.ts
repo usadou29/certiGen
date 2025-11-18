@@ -26,10 +26,9 @@ export const generateCertificates = async (
 
   for (let i = 0; i < data.participants.length; i++) {
     const participant = data.participants[i];
-
     const pdfContent = await generateCertificatePDF(participant, data, templateContent);
 
-    const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pdf`;
+    const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pptx`;
     folder.file(fileName, pdfContent);
 
     onProgress(i + 1, total);
@@ -53,23 +52,23 @@ const generateCertificatePDF = async (
     linebreaks: true,
   });
 
-  const startDateFormatted = new Date(data.startDate).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+    const end = new Date(data.endDate);
 
-  const endDateFormatted = new Date(data.endDate).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+    let startDateFormatted = '';
+    let endDateFormatted = '';
+    endDateFormatted = end.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    startDateFormatted = extracted(data);
+
+
+
+  const dayOfDateFormatted = new Date().toLocaleDateString('fr');
 
   doc.setData({
     firstName: participant.firstName || '',
     lastName: participant.lastName || '',
-    fullName: `${participant.firstName} ${participant.lastName}`,
     formationName: data.formationName || '',
+    dayOfDate: dayOfDateFormatted || '',
     startDate: startDateFormatted,
     endDate: endDateFormatted,
   });
@@ -83,8 +82,24 @@ const generateCertificatePDF = async (
 
   const buf = doc.getZip().generate({
     type: 'blob',
-    mimeType: 'application/pdf'
+    mimeType: 'application/pptx'
   });
 
   return buf;
 };
+
+
+function extracted(data: FormationData) {
+
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    const isYearDifferent = start.getFullYear() !== end.getFullYear();
+
+    const isMonthDifferent = start.getMonth() !== end.getMonth();
+    if (isYearDifferent) {
+        return start.toLocaleDateString('fr-FR', {year: 'numeric', month: 'long', day: 'numeric'});
+    } else if (isMonthDifferent) {
+        return start.toLocaleDateString('fr-FR', {month: 'long', day: 'numeric'});
+    }
+    return start.toLocaleDateString('fr-FR', {day: 'numeric'});
+}
