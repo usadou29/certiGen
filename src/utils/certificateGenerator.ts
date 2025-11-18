@@ -3,19 +3,11 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import { convertPptxToPdf, initializeWasmModule } from './pptxToPdfConverter';
 
 export const generateCertificates = async (
   data: FormationData,
   onProgress: (current: number, total: number) => void
 ): Promise<void> => {
-  const wasmModule = await initializeWasmModule();
-  const usePdf = wasmModule !== null;
-
-  if (!usePdf) {
-    console.info('Generating certificates in PPTX format (WASM not available)');
-  }
-
   const zip = new JSZip();
   const total = data.participants.length;
   const folderName = `Certificates_${data.formationName.replace(/\s+/g, '_')}`;
@@ -34,28 +26,10 @@ export const generateCertificates = async (
 
   for (let i = 0; i < data.participants.length; i++) {
     const participant = data.participants[i];
-    const pptxBlob = await generateCertificatePPTX(participant, data, templateContent);
+    const pdfContent = await generateCertificatePDF(participant, data, templateContent);
 
-    const fileBaseName = `Certificate_${participant.firstName}_${participant.lastName}`;
-
-    let fileBlob: Blob;
-    let fileName: string;
-
-    if (usePdf) {
-      const pdfBlob = await convertPptxToPdf(pptxBlob, fileBaseName);
-      if (pdfBlob) {
-        fileBlob = pdfBlob;
-        fileName = `${fileBaseName}.pdf`;
-      } else {
-        fileBlob = pptxBlob;
-        fileName = `${fileBaseName}.pptx`;
-      }
-    } else {
-      fileBlob = pptxBlob;
-      fileName = `${fileBaseName}.pptx`;
-    }
-
-    folder.file(fileName, fileBlob);
+    const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pptx`;
+    folder.file(fileName, pdfContent);
 
     onProgress(i + 1, total);
 
@@ -66,7 +40,7 @@ export const generateCertificates = async (
   saveAs(zipBlob, `${folderName}.zip`);
 };
 
-const generateCertificatePPTX = async (
+const generateCertificatePDF = async (
   participant: Participant,
   data: FormationData,
   templateContent: Uint8Array
