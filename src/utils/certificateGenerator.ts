@@ -8,36 +8,42 @@ export const generateCertificates = async (
   data: FormationData,
   onProgress: (current: number, total: number) => void
 ): Promise<void> => {
-  const zip = new JSZip();
-  const total = data.participants.length;
-  const folderName = `Certificates_${data.formationName.replace(/\s+/g, '_')}`;
-  const folder = zip.folder(folderName);
+  try {
+    const zip = new JSZip();
+    const total = data.participants.length;
+    const folderName = `Certificates_${data.formationName.replace(/\s+/g, '_')}`;
+    const folder = zip.folder(folderName);
 
-  if (!folder) {
-    throw new Error('Could not create folder in ZIP');
+    if (!folder) {
+      throw new Error('Could not create folder in ZIP');
+    }
+
+    const templateResponse = await fetch('/template.pptx');
+    if (!templateResponse.ok) {
+      throw new Error(`Could not load certificate template: ${templateResponse.status} ${templateResponse.statusText}`);
+    }
+    const templateArrayBuffer = await templateResponse.arrayBuffer();
+    const templateContent = new Uint8Array(templateArrayBuffer);
+
+    for (let i = 0; i < data.participants.length; i++) {
+      const participant = data.participants[i];
+      const pdfContent = await generateCertificatePDF(participant, data, templateContent);
+
+      const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pptx`;
+      folder.file(fileName, pdfContent);
+
+      onProgress(i + 1, total);
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    saveAs(zipBlob, `${folderName}.zip`);
+  } catch (error) {
+    console.error('Error in generateCertificates:', error);
+    alert(`Error generating certificates: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   }
-
-  const templateResponse = await fetch('/template.pptx');
-  if (!templateResponse.ok) {
-    throw new Error('Could not load certificate template');
-  }
-  const templateArrayBuffer = await templateResponse.arrayBuffer();
-  const templateContent = new Uint8Array(templateArrayBuffer);
-
-  for (let i = 0; i < data.participants.length; i++) {
-    const participant = data.participants[i];
-    const pdfContent = await generateCertificatePDF(participant, data, templateContent);
-
-    const fileName = `Certificate_${participant.firstName}_${participant.lastName}.pptx`;
-    folder.file(fileName, pdfContent);
-
-    onProgress(i + 1, total);
-
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  saveAs(zipBlob, `${folderName}.zip`);
 };
 
 const generateCertificatePDF = async (
